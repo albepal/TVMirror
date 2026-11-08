@@ -11,7 +11,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
 /**
- * One connection from the Mac. Wire format (shared with mac/Sources/TVMirror/Protocol.swift):
+ * One connection from a computer (Mac or Windows). Wire format (shared with mac/Sources/TVMirror/Protocol.swift):
  * type (1) | flags (1) | pts µs (8, big endian) | length (4, big endian) | payload.
  */
 final class Session {
@@ -51,9 +51,9 @@ final class Session {
     private Thread reader;
     private final byte[] header = new byte[14];
     // Stats: arrival time minus send pts (clocks differ, so only the excess over the best case matters).
-    // The best case is a minimum over the last 5-10 s, so it follows slow clock drift between Mac and TV.
+    // The best case is a minimum over the last 5-10 s, so it follows slow clock drift between computer and TV.
     private long winMin = Long.MAX_VALUE, prevWinMin = Long.MAX_VALUE, winStart, excessSum, excessMax; private int excessCount;
-    /** Best-case (arrival time − pts) in µs: maps a frame's Mac timestamp to the earliest TV time it can arrive. */
+    /** Best-case (arrival time − pts) in µs: maps a frame's sender timestamp to the earliest TV time it can arrive. */
     volatile long offsetUs = Long.MIN_VALUE;
 
     Session(Socket socket) throws IOException {
@@ -106,9 +106,9 @@ final class Session {
                 }
             }
         } catch (IOException e) {
-            if (!closed) reason = "The connection to the Mac was lost.";
+            if (!closed) reason = "The connection to the computer was lost.";
         } catch (JSONException e) {
-            reason = "The Mac sent data this app doesn't understand. Update both apps.";
+            reason = "The computer sent data this app doesn't understand. Update both apps.";
         }
         closeSocket();
         l.onClosed(reason);
@@ -129,8 +129,18 @@ final class Session {
         }
     }
 
-    void requestKeyframe() { send(REQUEST_KEYFRAME, 0); }
+    /** Outgoing messages go through one background thread: Android forbids network calls on the UI thread. */
+    private final java.util.concurrent.ExecutorService sender = java.util.concurrent.Executors.newSingleThreadExecutor();
 
+    /** Safe to call from any thread. */
+    void requestKeyframe() { post(REQUEST_KEYFRAME, 0); }
+
+    private void post(int type, long pts) {
+        if (closed) return;
+        try { sender.execute(() -> send(type, pts)); } catch (java.util.concurrent.RejectedExecutionException ignored) { }
+    }
+
+    /** Writes immediately; only call from a background thread (the reader thread or the sender). */
     private synchronized void send(int type, long pts) {
         if (closed) return;
         try {
@@ -145,18 +155,25 @@ final class Session {
         }
     }
 
-    /** Stops the session and tells the Mac (it shows "stopped on the TV"). */
+    /** Stops the session and tells the computer (it shows "stopped on the TV"). */
     void close() {
         synchronized (this) {
             if (closed) return;
-            send(BYE, 0);
-            closed = true;
         }
-        closeSocket();
+        try {
+            sender.execute(() -> {
+                send(BYE, 0);
+                closeSocket();
+            });
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            closeSocket();
+        }
+        sender.shutdown();
     }
 
     private void closeSocket() {
         closed = true;
+        sender.shutdown();
         clearIfCurrent(this);
         try { socket.close(); } catch (IOException ignored) { }
     }

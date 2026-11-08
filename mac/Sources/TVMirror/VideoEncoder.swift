@@ -56,10 +56,14 @@ final class VideoEncoder {
     deinit { invalidate() }
 
     func invalidate() {
-        lock.lock(); defer { lock.unlock() }
-        if let session {
-            VTCompressionSessionInvalidate(session)
-            self.session = nil
+        // Take the session out under the lock, but invalidate it *outside* the lock: invalidating waits
+        // for frames still in flight, whose output handler also takes the lock (that was a deadlock).
+        lock.lock()
+        let s = session
+        session = nil
+        lock.unlock()
+        if let s {
+            VTCompressionSessionInvalidate(s)
         }
     }
 

@@ -67,6 +67,7 @@ final class VideoDecoder {
         }
         currentConfig = config;
         waitingForKeyframe = true;
+        Log.i(TAG, "decoder ready: " + mime + " " + width + "x" + height);
     }
 
     private MediaCodec create(String mime, int width, int height, byte[] config, boolean lowLatency) throws Exception {
@@ -177,6 +178,14 @@ final class VideoDecoder {
             if (queuedAt.size() > 300) queuedAt.clear();
         }
     }
+
+    /** Drops the current decoder; the next keyframe (with its parameters) builds a fresh one. */
+    synchronized void reset() {
+        releaseCodec();
+        waitingForKeyframe = true;
+    }
+
+    boolean hasShownFrame() { return sawFirstFrame; }
 
     synchronized void release() {
         releaseCodec();

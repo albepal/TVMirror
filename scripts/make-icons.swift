@@ -12,7 +12,7 @@ func rgb(_ hex: UInt32, _ a: CGFloat = 1) -> NSColor {
 
 let bgGradient = NSGradient(colors: [rgb(0x2F6BFF), rgb(0x5B4BFF), rgb(0x9A3DFF)])!
 
-/// The glyph: a TV whose screen shows a little Mac desktop (menu bar, window, cursor).
+/// The glyph: a TV whose screen shows a little desktop (top bar, window, cursor).
 /// `area` is the square to draw in.
 func drawGlyph(in area: NSRect) {
     let u = area.width / 100 // design on a 100-unit grid
@@ -45,7 +45,7 @@ func drawGlyph(in area: NSRect) {
     NSGradient(colors: [rgb(0x0E1640), rgb(0x23307A)])!.draw(in: screen, angle: 90)
     NSGraphicsContext.current?.saveGraphicsState()
     screen.addClip()
-    // Menu bar.
+    // Top bar.
     rgb(0xFFFFFF, 0.18).setFill()
     NSRect(x: screenRect.minX, y: screenRect.maxY - 4 * u, width: screenRect.width, height: 4 * u).fill()
     // Window.
@@ -56,8 +56,8 @@ func drawGlyph(in area: NSRect) {
     NSBezierPath(roundedRect: NSRect(x: win.minX, y: win.maxY - 4.5 * u, width: win.width, height: 4.5 * u),
                  xRadius: 2 * u, yRadius: 2 * u).fill()
     NSRect(x: win.minX, y: win.maxY - 4.5 * u, width: win.width, height: 2 * u).fill()
-    for (i, c) in [0xFF5F57, 0xFEBC2E, 0x28C840].enumerated() {
-        rgb(UInt32(c)).setFill()
+    for i in 0..<3 {
+        rgb(0x7A8CC8).setFill()
         NSBezierPath(ovalIn: NSRect(x: win.minX + (2 + CGFloat(i) * 3) * u, y: win.maxY - 3.3 * u,
                                     width: 2 * u, height: 2 * u)).fill()
     }
@@ -145,7 +145,7 @@ save(render(width: 640, height: 360) { r in
     let title = NSAttributedString(string: "TVMirror", attributes: [
         .font: NSFont.systemFont(ofSize: 66, weight: .bold), .foregroundColor: NSColor.white])
     title.draw(at: NSPoint(x: 300, y: 170))
-    let sub = NSAttributedString(string: "Your Mac, on the big screen", attributes: [
+    let sub = NSAttributedString(string: "Your computer, on the big screen", attributes: [
         .font: NSFont.systemFont(ofSize: 25, weight: .medium), .foregroundColor: NSColor.white.withAlphaComponent(0.85)])
     sub.draw(at: NSPoint(x: 303, y: 128))
 }, "banner.png")

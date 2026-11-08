@@ -9,7 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>TVMirror</AssemblyName>
     <RootNamespace>TVMirror</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.0.2</Version>
     <Product>TVMirror</Product>
     <Description>AirPlay-style screen mirroring to a Google TV</Description>
     <ApplicationIcon>app.ico</ApplicationIcon>

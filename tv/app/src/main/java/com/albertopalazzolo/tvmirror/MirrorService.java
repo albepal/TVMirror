@@ -20,7 +20,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 /**
- * Always-on receiver, like the AirPlay receiver on an Apple TV: listens for the Mac, announces the
+ * Always-on receiver, like the AirPlay receiver on an Apple TV: listens for computers, announces the
  * TV on the network (Bonjour/NSD), and opens the video screen when a connection arrives.
  */
 public class MirrorService extends Service {
@@ -62,7 +62,7 @@ public class MirrorService extends Service {
         nm.createNotificationChannel(new NotificationChannel("receiver", "Mirroring receiver", NotificationManager.IMPORTANCE_MIN));
         Notification n = new Notification.Builder(this, "receiver")
                 .setContentTitle("TVMirror")
-                .setContentText("Ready to receive your Mac's screen")
+                .setContentText("Ready to show your computer's screen")
                 .setSmallIcon(R.drawable.ic_stat)
                 .setOngoing(true)
                 .build();

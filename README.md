@@ -10,7 +10,19 @@ Downloads (DMG, EXE, TV APK) are on the Releases page.
 Latency control: no B-frames, no decoder buffering, the TV acks each frame and the Mac drops frames and
 asks for a keyframe when more than 8 are in flight, and the TV disables Wi-Fi power saving while mirroring.
 
-## Build & install
+## Install (no computer skills needed)
+
+1. **TV (Google TV / Android TV):** from Google Play install the free app **Downloader**. Open it, type
+   `github.com/albepal/TVMirror/releases/latest/download/TVMirror-tv.apk`, install, and open **TVMirror**.
+   If the TV asks, allow Downloader to install apps. On TVMirror's home screen, press
+   **Allow it to start from anywhere** so mirroring can start even when another app is open.
+2. **Mac:** download `TVMirror-mac.dmg` from Releases, drag TVMirror to Applications and open it.
+   If macOS blocks it: System Settings → Privacy & Security → **Open Anyway**.
+   **Windows:** download `TVMirror-windows.exe` and run it (SmartScreen: More info → Run anyway).
+3. The setup guide that opens finds your TV — click **Mirror**. Afterwards use the TV icon in the menu bar
+   (Mac) or next to the clock (Windows). Press Back on the TV remote to stop.
+
+## Build & install (developers)
 
 ```bash
 mac/scripts/build.sh --install          # Mac app → /Applications, launches it (TV icon in the menu bar)
@@ -48,3 +60,12 @@ Both apps log timing every ~2 s:
 - TV not listed: open TVMirror on the TV once (starts the receiver), or use "Connect to IP Address…".
 - Stutter on Wi-Fi: use 1080p, put the TV on Ethernet or 5 GHz.
 - Testing without a TV: `open /Applications/TVMirror.app --args --connect 127.0.0.1:47800` against a fake receiver.
+
+## Credits
+
+Built by Alberto Palazzolo together with **Claude** (Anthropic's AI model), using Claude Code.
+Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## License
+
+MIT – see [LICENSE](LICENSE). Bundled third-party components keep their own licenses ([THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).

@@ -135,7 +135,7 @@ sealed class StreamConnection : IDisposable
                 {
                     case Packet.Ack: OnAck(pts); break;
                     case Packet.RequestKeyframe: KeyframeRequested?.Invoke(); break;
-                    case Packet.Bye: Finish("Mirroring was stopped on the TV."); return;
+                    case Packet.Bye: Finish(null); return; // stopped from the TV: a normal end
                 }
             }
         }

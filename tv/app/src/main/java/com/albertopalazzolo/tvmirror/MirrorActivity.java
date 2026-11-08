@@ -2,6 +2,7 @@ package com.albertopalazzolo.tvmirror;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Outline;
 import android.net.wifi.WifiManager;
@@ -26,9 +27,10 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
     private FrameLayout root;
     private SurfaceView surfaceView;
     private TextView status;
+    private TextView fromText;
     private View splash;
     private TextView hint;
-    private volatile String peerName = "your Mac";
+    private volatile String peerName = "your computer";
 
     private Session session;
     private VideoDecoder decoder;
@@ -69,9 +71,12 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
         icon.setClipToOutline(true);
         splashBox.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 130), Ui.dp(this, 130)));
         status = Ui.text(this, "Connecting…", 24, Ui.TEXT, true);
+        status.setGravity(Gravity.CENTER);
         status.setPadding(0, Ui.dp(this, 28), 0, Ui.dp(this, 8));
         splashBox.addView(status);
-        splashBox.addView(Ui.text(this, "from " + session.peer, 16, Ui.TEXT_DIM, false));
+        fromText = Ui.text(this, session.peer.contains(":") ? "" : "from " + session.peer, 16, Ui.TEXT_DIM, false);
+        fromText.setGravity(Gravity.CENTER);
+        splashBox.addView(fromText);
         splash = splashBox;
         root.addView(splash, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
@@ -110,17 +115,39 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
     @Override
     protected void onStop() {
         super.onStop();
-        endSession(); // leaving the screen (Home, Back, another app) stops mirroring, like AirPlay
+        endSession(false); // Home or another app: stop mirroring and let that screen show
     }
 
-    private void endSession() {
+    @Override
+    public void onBackPressed() {
+        endSession(true);
+    }
+
+    /**
+     * Leaves the video screen at once (optionally landing on TVMirror's home screen), then tears down
+     * the connection, sound and decoder in the background: releasing the hardware decoder can take a
+     * moment on TV chips, and the last frame shouldn't linger meanwhile.
+     */
+    private void endSession(boolean goHome) {
         if (ended) return;
         ended = true;
-        if (session != null) session.close();
-        if (scheduler != null) scheduler.interrupt();
-        audio.stop();
-        if (decoder != null) decoder.release();
-        if (!isFinishing()) finish();
+        if (goHome) {
+            startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION));
+        }
+        if (!isFinishing()) {
+            finish();
+            overridePendingTransition(0, 0);
+        }
+        final Session s = session;
+        final Thread sch = scheduler;
+        final VideoDecoder d = decoder;
+        new Thread(() -> {
+            if (s != null) s.close();
+            if (sch != null) sch.interrupt();
+            audio.stop();
+            if (d != null) d.release();
+        }, "tvmirror-teardown").start();
     }
 
     // MARK: Surface
@@ -141,7 +168,7 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        endSession();
+        endSession(false);
     }
 
     // MARK: Session.Listener (reader thread)
@@ -149,6 +176,7 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
     @Override
     public void onHello(JSONObject hello) {
         playoutDelayUs = hello.optInt("playoutDelayMs", 0) * 1000L;
+        android.util.Log.i("TVMirror", "hello from " + session.peer + ": " + hello);
         if (playoutDelayUs > 0 && scheduler == null) {
             scheduler = new Thread(this::runScheduler, "tvmirror-playout");
             scheduler.setPriority(Thread.MAX_PRIORITY);
@@ -157,13 +185,14 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
         videoWidth = hello.optInt("width", 1920);
         videoHeight = hello.optInt("height", 1080);
         mime = "hevc".equals(hello.optString("codec")) ? "video/hevc" : "video/avc";
-        final String name = hello.optString("name", "Mac");
+        final String name = hello.optString("name", "your computer");
         if (hello.optBoolean("audio", false)) {
             audio.start(hello.optInt("sampleRate", 48000), hello.optInt("channels", 2), hello.optInt("playoutDelayMs", 0) > 0);
         }
         runOnUiThread(() -> {
+            root.postDelayed(watchdog, 2500);
             peerName = name;
-            status.setText("Connecting to " + name + "…");
+            fromText.setText("from " + name);
             fitVideo();
         });
     }
@@ -191,11 +220,31 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public void onClosed(String reason) {
+        android.util.Log.i("TVMirror", "session closed: " + (reason == null ? "clean" : reason));
         runOnUiThread(() -> {
             if (reason != null && !ended) Toast.makeText(this, reason, Toast.LENGTH_LONG).show();
-            endSession();
+            endSession(true); // stopped from the computer: back to TVMirror's home screen
         });
     }
+
+    private int recoveries;
+
+    /** If no picture shows up, rebuild the decoder and ask for a fresh keyframe instead of hanging. */
+    private final Runnable watchdog = new Runnable() {
+        @Override public void run() {
+            VideoDecoder d = decoder;
+            if (ended || d == null || d.hasShownFrame()) return;
+            recoveries++;
+            android.util.Log.w("TVMirror", "no picture yet, recovering (attempt " + recoveries + ")");
+            if (recoveries <= 3) {
+                d.reset();
+                session.requestKeyframe();
+                root.postDelayed(this, 2500);
+            } else {
+                status.setText("No picture is arriving");
+            }
+        }
+    };
 
     /** Smooth mode: feeds each frame to the decoder at a steady delay after its best-case arrival time. */
     private void runScheduler() {
@@ -217,13 +266,14 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
 
     /** Fades the splash away and briefly shows who is mirroring. */
     private void showPicture() {
+        android.util.Log.i("TVMirror", "first frame shown");
         splash.animate().alpha(0f).setDuration(350).withEndAction(() -> splash.setVisibility(View.GONE)).start();
         hint.setText("Mirroring from " + peerName + "  ·  Press Back to stop");
         hint.animate().alpha(1f).setStartDelay(300).setDuration(300).withEndAction(() ->
                 hint.animate().alpha(0f).setStartDelay(3500).setDuration(600).start()).start();
     }
 
-    /** Letterboxes the video to its own aspect ratio (e.g. a 16:10 Mac screen on a 16:9 TV). */
+    /** Letterboxes the video to its own aspect ratio (e.g. a 16:10 laptop screen on a 16:9 TV). */
     private void fitVideo() {
         int w = root.getWidth(), h = root.getHeight();
         if (w == 0 || h == 0 || videoWidth == 0) {

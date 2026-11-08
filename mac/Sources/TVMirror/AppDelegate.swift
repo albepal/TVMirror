@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Where the current/last session went, so setting changes can restart it.
     private var lastTarget: (endpoint: NWEndpoint, name: String)?
     private var state: State = .idle { didSet { updateIcon() } }
+    private lazy var welcome = WelcomeWindow(tvs: { [weak self] in self?.browser.tvs ?? [] },
+                                             connect: { [weak self] tv in self?.connect(to: tv.endpoint, name: tv.name) })
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AudioMuter.restore() // in case a previous run crashed while the Mac was muted
@@ -26,8 +28,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateIcon()
         browser.start()
 
-        // Testing hook: `open TVMirror.app --args --connect 127.0.0.1:47800`
         let args = CommandLine.arguments
+        if !UserDefaults.standard.bool(forKey: "welcomeShown") && !args.contains(where: { $0.hasPrefix("--connect") }) {
+            UserDefaults.standard.set(true, forKey: "welcomeShown")
+            welcome.show()
+        }
+
+        // Testing hook, same path as the menu: `open TVMirror.app --args --connect-name "Smart TV"`
+        if let i = args.firstIndex(of: "--connect-name"), i + 1 < args.count {
+            let name = args[i + 1]
+            browser.onChange = { [weak self] in
+                guard let self, self.session == nil, let tv = self.browser.tvs.first(where: { $0.name == name }) else { return }
+                self.browser.onChange = nil
+                self.connect(to: tv.endpoint, name: tv.name)
+            }
+        }
+
+        // Testing hook: `open TVMirror.app --args --connect 127.0.0.1:47800`
         if let i = args.firstIndex(of: "--connect"), i + 1 < args.count {
             let parts = args[i + 1].split(separator: ":")
             let port = parts.count > 1 ? UInt16(parts[1]) ?? tvDefaultPort : tvDefaultPort
@@ -148,6 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(mute)
 
         menu.addItem(.separator())
+        menu.addItem(action("Setup Guide…", #selector(showWelcome)))
         let login = action("Open at Login", #selector(toggleLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
@@ -290,6 +308,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } catch {
             show(error)
         }
+    }
+
+    @objc private func showWelcome() {
+        welcome.show()
     }
 
     @objc private func quit() {
