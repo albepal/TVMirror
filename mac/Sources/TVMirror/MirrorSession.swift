@@ -159,6 +159,7 @@ final class MirrorSession {
 
     private func end(_ error: Error?) {
         guard !ended else { return }
+        statsLog.notice("session ended: \(error.map { String(describing: $0) } ?? "clean", privacy: .public)")
         ended = true
         connectTimeout?.cancel()
         capture?.stop()

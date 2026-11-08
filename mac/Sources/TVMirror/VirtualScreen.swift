@@ -22,11 +22,13 @@ final class VirtualScreen {
         guard let display = CGVirtualDisplay(descriptor: descriptor) else { return nil }
         self.display = display
 
-        // HiDPI modes ("looks like" sizes), rendered at 2× and scaled to the stream size, so text stays
-        // sharp. 1920×1080 first (the TV's own resolution); larger-text options are in Displays settings.
+        // HiDPI modes ("looks like" sizes), rendered at 2× and scaled to the stream, so text stays sharp.
+        // The first mode is the starting one. On macOS 27 the display only comes online with certain
+        // starting modes (1280×720 and 1600×900 work; 1920×1080 doesn't), so the list must start at
+        // 1280×720 – also a comfortable text size from the couch. 1920×1080 is in Displays settings.
         let settings = CGVirtualDisplaySettings()
         settings.hiDPI = 1
-        settings.modes = [(1920, 1080), (1600, 900), (1280, 720)].map {
+        settings.modes = [(1280, 720), (1600, 900), (1920, 1080)].map {
             CGVirtualDisplayMode(width: UInt32($0.0), height: UInt32($0.1), refreshRate: 60)
         }
         guard display.apply(settings), display.displayID != 0 else { return nil }
