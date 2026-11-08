@@ -1,0 +1,54 @@
+name: Windows
+
+on:
+  push:
+    paths: ["windows/**", "tools/**", ".github/workflows/windows.yml"]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Get FFmpeg
+        run: windows/get-ffmpeg.ps1
+        shell: pwsh
+
+      - name: Build TVMirror.exe
+        run: dotnet publish windows/TVMirror.csproj -c Release -o dist
+        shell: pwsh
+
+      # End-to-end test on this real Windows machine: mirror its screen to a fake TV for 8 s,
+      # then check that the received H.264 decodes.
+      - name: Self-test (capture → encode → stream)
+        shell: pwsh
+        run: |
+          $tv = Start-Process python -ArgumentList "tools/fake_tv.py", "received", "30" -PassThru -NoNewWindow -RedirectStandardOutput fake_tv.log
+          Start-Sleep -Seconds 2
+          $app = Start-Process dist/TVMirror.exe -ArgumentList "--selftest", "127.0.0.1:47800", "8", "selftest.log" -Wait -PassThru
+          $tv.WaitForExit(15000) | Out-Null
+          Write-Host "--- app log"; Get-Content selftest.log
+          Write-Host "--- fake TV"; Get-Content fake_tv.log
+          Write-Host "--- decode check"
+          windows/ffmpeg/ffprobe.exe -v error -count_frames -select_streams v:0 -show_entries stream=codec_name,width,height,nb_read_frames -of default=nw=1 received.h264
+          windows/ffmpeg/ffmpeg.exe -v error -i received.h264 -f null - 2>&1 | Tee-Object decode_errors.txt
+          if ($app.ExitCode -ne 0) { throw "self-test failed (exit $($app.ExitCode))" }
+          if ((Get-Item decode_errors.txt).Length -gt 0) { throw "decode errors" }
+          windows/ffmpeg/ffmpeg.exe -v error -sseof -1 -i received.h264 -frames:v 1 -update 1 last_frame.png
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: TVMirror-windows
+          path: |
+            dist/TVMirror.exe
+            selftest.log
+            fake_tv.log
+            last_frame.png

@@ -5,3 +5,7 @@ tv/.gradle/
 tv/build/
 tv/app/build/
 tv/local.properties
+windows/ffmpeg/
+windows/bin/
+windows/obj/
+dist/
