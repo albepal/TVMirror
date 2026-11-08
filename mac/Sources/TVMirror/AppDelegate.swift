@@ -88,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
 
         let screens = NSScreen.screens
-        if screens.count > 1 {
+        if screens.count > 1 && Settings.screenUse == .mirror {
             let sub = NSMenu()
             let current = Settings.displayID == 0 ? CGMainDisplayID() : Settings.displayID
             for screen in screens {
@@ -100,6 +100,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             menu.addItem(submenu("Display", sub))
         }
+
+        for u in ScreenUse.allCases {
+            let item = NSMenuItem(title: u.title, action: #selector(pickScreenUse(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = u.rawValue
+            item.state = u == Settings.screenUse ? .on : .off
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
 
         for m in Mode.allCases {
             let item = NSMenuItem(title: m.title, action: #selector(pickMode(_:)), keyEquivalent: "")
@@ -234,6 +243,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func pickDisplay(_ sender: NSMenuItem) {
         Settings.displayID = CGDirectDisplayID(sender.tag)
+        settingsChanged()
+    }
+
+    @objc private func pickScreenUse(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let u = ScreenUse(rawValue: raw) else { return }
+        Settings.screenUse = u
         settingsChanged()
     }
 

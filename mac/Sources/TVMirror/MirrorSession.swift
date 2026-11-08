@@ -26,6 +26,7 @@ final class MirrorSession {
     private var capture: ScreenCapture?
     private var encoder: VideoEncoder?
     private let muter = AudioMuter()
+    private var virtualScreen: VirtualScreen?
     private var ended = false
     private var connectTimeout: DispatchWorkItem?
 
@@ -85,12 +86,22 @@ final class MirrorSession {
     @MainActor
     private func startMedia() async throws {
         guard let connection else { return }
-        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        let wanted = Settings.displayID == 0 ? CGMainDisplayID() : Settings.displayID
-        guard let display = content.displays.first(where: { $0.displayID == wanted })
-                ?? content.displays.first(where: { $0.displayID == CGMainDisplayID() })
-                ?? content.displays.first else {
-            throw MirrorError.message("No display found to mirror.")
+        let display: SCDisplay
+        if Settings.screenUse == .extend {
+            guard let screen = VirtualScreen(name: name) else {
+                throw MirrorError.message("Couldn't create the extended display.")
+            }
+            virtualScreen = screen
+            display = try await findDisplay(screen.displayID)
+        } else {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            let wanted = Settings.displayID == 0 ? CGMainDisplayID() : Settings.displayID
+            guard let d = content.displays.first(where: { $0.displayID == wanted })
+                    ?? content.displays.first(where: { $0.displayID == CGMainDisplayID() })
+                    ?? content.displays.first else {
+                throw MirrorError.message("No display found to mirror.")
+            }
+            display = d
         }
 
         let quality = Settings.quality
@@ -135,6 +146,17 @@ final class MirrorSession {
         try await capture.start(display: display, width: width, height: height, fps: fps, audio: audio)
     }
 
+    /// A new virtual display takes a moment to show up in ScreenCaptureKit.
+    @MainActor
+    private func findDisplay(_ id: CGDirectDisplayID) async throws -> SCDisplay {
+        for _ in 0..<30 {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            if let d = content.displays.first(where: { $0.displayID == id }) { return d }
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        throw MirrorError.message("The extended display didn't appear.")
+    }
+
     private func end(_ error: Error?) {
         guard !ended else { return }
         ended = true
@@ -146,6 +168,11 @@ final class MirrorSession {
         connection?.close(sayBye: error == nil)
         connection = nil
         AudioMuter.restore()
+        // Release the virtual display after capture has stopped; macOS moves its windows back.
+        if let screen = virtualScreen {
+            virtualScreen = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { _ = screen }
+        }
         onEvent?(.ended(error))
     }
 }

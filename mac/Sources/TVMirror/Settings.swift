@@ -62,6 +62,17 @@ enum Mode: String, CaseIterable {
     var playoutDelayMs: Int { self == .smooth ? 150 : 0 }
 }
 
+enum ScreenUse: String, CaseIterable {
+    case mirror, extend
+
+    var title: String {
+        switch self {
+        case .mirror: "Mirror Screen"
+        case .extend: "Extend Screen (TV as second display)"
+        }
+    }
+}
+
 struct Settings {
     private static let d = UserDefaults.standard
 
@@ -72,6 +83,10 @@ struct Settings {
     static var codec: Codec {
         get { Codec(rawValue: d.string(forKey: "codec") ?? "") ?? .automatic }
         set { d.set(newValue.rawValue, forKey: "codec") }
+    }
+    static var screenUse: ScreenUse {
+        get { ScreenUse(rawValue: d.string(forKey: "screenUse") ?? "") ?? .mirror }
+        set { d.set(newValue.rawValue, forKey: "screenUse") }
     }
     static var mode: Mode {
         get { Mode(rawValue: d.string(forKey: "mode") ?? "") ?? .responsive }
