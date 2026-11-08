@@ -2,6 +2,7 @@ package com.albertopalazzolo.tvmirror;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Outline;
 import android.net.wifi.WifiManager;
@@ -110,17 +111,39 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
     @Override
     protected void onStop() {
         super.onStop();
-        endSession(); // leaving the screen (Home, Back, another app) stops mirroring, like AirPlay
+        endSession(false); // Home or another app: stop mirroring and let that screen show
     }
 
-    private void endSession() {
+    @Override
+    public void onBackPressed() {
+        endSession(true);
+    }
+
+    /**
+     * Leaves the video screen at once (optionally landing on TVMirror's home screen), then tears down
+     * the connection, sound and decoder in the background: releasing the hardware decoder can take a
+     * moment on TV chips, and the last frame shouldn't linger meanwhile.
+     */
+    private void endSession(boolean goHome) {
         if (ended) return;
         ended = true;
-        if (session != null) session.close();
-        if (scheduler != null) scheduler.interrupt();
-        audio.stop();
-        if (decoder != null) decoder.release();
-        if (!isFinishing()) finish();
+        if (goHome) {
+            startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION));
+        }
+        if (!isFinishing()) {
+            finish();
+            overridePendingTransition(0, 0);
+        }
+        final Session s = session;
+        final Thread sch = scheduler;
+        final VideoDecoder d = decoder;
+        new Thread(() -> {
+            if (s != null) s.close();
+            if (sch != null) sch.interrupt();
+            audio.stop();
+            if (d != null) d.release();
+        }, "tvmirror-teardown").start();
     }
 
     // MARK: Surface
@@ -141,7 +164,7 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        endSession();
+        endSession(false);
     }
 
     // MARK: Session.Listener (reader thread)
@@ -193,7 +216,7 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
     public void onClosed(String reason) {
         runOnUiThread(() -> {
             if (reason != null && !ended) Toast.makeText(this, reason, Toast.LENGTH_LONG).show();
-            endSession();
+            endSession(true); // stopped from the computer: back to TVMirror's home screen
         });
     }
 
