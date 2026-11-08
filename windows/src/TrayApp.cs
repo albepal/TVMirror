@@ -65,12 +65,24 @@ sealed class TrayApp : ApplicationContext
         switch (state)
         {
             case "idle":
-                menu.Items.Add(Header("Mirror to"));
+                menu.Items.Add(Header("Connect to"));
                 if (tvs.Count == 0) menu.Items.Add(new ToolStripMenuItem("Looking for TVs… (open TVMirror on the TV)") { Enabled = false });
+                // Each TV opens a small submenu: mirror or extend.
                 foreach (var tv in tvs)
                 {
                     var t = tv;
-                    menu.Items.Add(new ToolStripMenuItem(tv.Name, null, (_, _) => Connect(t.Host, t.Port, t.Name)));
+                    var item = new ToolStripMenuItem(tv.Name);
+                    foreach (var u in Enum.GetValues<ScreenUse>())
+                    {
+                        var use = u;
+                        item.DropDownItems.Add(new ToolStripMenuItem(Settings.Title(u), null, (_, _) =>
+                        {
+                            settings.ScreenUse = use;
+                            settings.Save();
+                            Connect(t.Host, t.Port, t.Name);
+                        }));
+                    }
+                    menu.Items.Add(item);
                 }
                 menu.Items.Add(new ToolStripMenuItem("Connect to IP Address…", null, (_, _) => ConnectManually()));
                 break;
@@ -79,22 +91,29 @@ sealed class TrayApp : ApplicationContext
                 menu.Items.Add(new ToolStripMenuItem("Cancel", null, (_, _) => session?.Stop()));
                 break;
             default:
-                menu.Items.Add(Header($"Mirroring to {session?.Name}"));
-                menu.Items.Add(new ToolStripMenuItem("Stop Mirroring", null, (_, _) => session?.Stop()));
+                bool extending = settings.ScreenUse == ScreenUse.Extend;
+                menu.Items.Add(Header(extending ? $"Extending to {session?.Name}" : $"Mirroring to {session?.Name}"));
+                menu.Items.Add(new ToolStripMenuItem(extending ? "Switch to Mirror Screen" : "Switch to Extend Screen", null, (_, _) =>
+                {
+                    settings.ScreenUse = extending ? ScreenUse.Mirror : ScreenUse.Extend;
+                    Changed();
+                }));
+                menu.Items.Add(new ToolStripMenuItem("Stop", null, (_, _) => session?.Stop()));
                 break;
         }
         menu.Items.Add(new ToolStripSeparator());
 
+        menu.Items.Add(new ToolStripMenuItem(settings.ScreenUse == ScreenUse.Extend ? "When extending:" : "When mirroring:") { Enabled = false });
         foreach (var m in Enum.GetValues<Mode>())
         {
             var mode = m;
-            menu.Items.Add(new ToolStripMenuItem(Settings.Title(m), null, (_, _) => { settings.Mode = mode; Changed(); })
-            { Checked = settings.Mode == m });
+            menu.Items.Add(new ToolStripMenuItem(Settings.Title(m), null, (_, _) => { settings.CurrentMode = mode; Changed(); })
+            { Checked = settings.CurrentMode == m });
         }
         menu.Items.Add(new ToolStripSeparator());
 
         var screens = Screen.AllScreens;
-        if (screens.Length > 1)
+        if (screens.Length > 1 && settings.ScreenUse == ScreenUse.Mirror)
         {
             var display = new ToolStripMenuItem("Display");
             for (int i = 0; i < screens.Length; i++)
@@ -131,13 +150,24 @@ sealed class TrayApp : ApplicationContext
     static ToolStripMenuItem Header(string text) =>
         new(text) { Enabled = false, Font = new Font(SystemFonts.MenuFont ?? Control.DefaultFont, FontStyle.Bold) };
 
+    static void ExplainVirtualDisplay()
+    {
+        var answer = MessageBox.Show(
+            "To use the TV as a second screen, Windows needs a virtual display driver – Windows can't create an extra screen on its own.\n\n" +
+            "Install the free, open-source “Virtual Display Driver”, then choose Extend Screen again. TVMirror finds the new screen automatically.\n\n" +
+            "Open the download page now?",
+            "TVMirror – Extend Screen", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+        if (answer == DialogResult.Yes)
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(VirtualDisplays.DriverUrl) { UseShellExecute = true });
+    }
+
     WelcomeForm? welcome;
 
     void ShowWelcome()
     {
         if (welcome is { IsDisposed: false }) { welcome.Activate(); return; }
         welcome = new WelcomeForm(idleIcon, () => tvs.Select(t => (t.Name, t.Host, t.Port)).ToList(),
-                                  t => Connect(t.Host, t.Port, t.Name));
+                                  t => { settings.ScreenUse = ScreenUse.Mirror; settings.Save(); Connect(t.Host, t.Port, t.Name); });
         welcome.Show();
         welcome.Activate();
     }
@@ -178,7 +208,8 @@ sealed class TrayApp : ApplicationContext
             if (session != s) return;
             session = null;
             SetState("idle");
-            if (err != null) icon.ShowBalloonTip(5000, "TVMirror", err, ToolTipIcon.Info);
+            if (err == NeedsVirtualDisplayException.Marker) ExplainVirtualDisplay();
+            else if (err != null) icon.ShowBalloonTip(5000, "TVMirror", err, ToolTipIcon.Info);
         }, null);
         s.Start();
     }

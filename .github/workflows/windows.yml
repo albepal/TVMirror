@@ -43,6 +43,17 @@ jobs:
           if ($app.ExitCode -ne 0) { throw "self-test failed (exit $($app.ExitCode))" }
           & windows/ffmpeg/ffmpeg.exe -v error -i received.h264 -vf "select=eq(n\,300)" -frames:v 1 last_frame.png
 
+      # Extend on a machine without a virtual monitor: the app must detect it and ask for a driver.
+      - name: Self-test (extend without a virtual display)
+        shell: pwsh
+        run: |
+          $tv = Start-Process python -ArgumentList "tools/fake_tv.py", "received_ext", "15", "47801" -PassThru -NoNewWindow -RedirectStandardOutput fake_tv_ext.log
+          Start-Sleep -Seconds 2
+          $app = Start-Process dist/TVMirror.exe -ArgumentList "--selftest", "127.0.0.1:47801", "4", "selftest_ext.log", "extend" -Wait -PassThru
+          Get-Content selftest_ext.log
+          if ($app.ExitCode -ne 0) { throw "extend self-test failed (exit $($app.ExitCode))" }
+          Stop-Process -Id $tv.Id -ErrorAction SilentlyContinue
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -50,5 +61,6 @@ jobs:
           path: |
             dist/TVMirror.exe
             selftest.log
+            selftest_ext.log
             fake_tv.log
             last_frame.png

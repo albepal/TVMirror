@@ -35,6 +35,7 @@ sealed class MirrorSession : IDisposable
         new Thread(() =>
         {
             try { Run(); }
+            catch (NeedsVirtualDisplayException) { End(NeedsVirtualDisplayException.Marker); }
             catch (Exception e) { End(e.Message); }
         }) { IsBackground = true, Name = "tvmirror-session" }.Start();
     }
@@ -42,7 +43,16 @@ sealed class MirrorSession : IDisposable
     void Run()
     {
         var screens = Screen.AllScreens;
-        screenIndex = Math.Clamp(settings.DisplayIndex, 0, screens.Length - 1);
+        bool extend = settings.ScreenUse == ScreenUse.Extend;
+        if (extend)
+        {
+            screenIndex = VirtualDisplays.Find();
+            if (screenIndex < 0) throw new NeedsVirtualDisplayException();
+        }
+        else
+        {
+            screenIndex = Math.Clamp(settings.DisplayIndex, 0, screens.Length - 1);
+        }
         screen = screens[screenIndex];
         (width, height) = Settings.Size(settings.Quality, screen.Bounds.Width, screen.Bounds.Height);
 
@@ -65,10 +75,13 @@ sealed class MirrorSession : IDisposable
             ["width"] = width, ["height"] = height, ["fps"] = Fps,
             ["codec"] = "h264",
             ["audio"] = audio != null, ["sampleRate"] = audio?.SampleRate ?? 48000, ["channels"] = 2,
-            ["playoutDelayMs"] = Settings.PlayoutDelayMs(settings.Mode),
+            ["playoutDelayMs"] = Settings.PlayoutDelayMs(settings.CurrentMode),
         });
 
-        StartVideo(useGdi: false);
+        // Virtual monitors often sit on their own adapter, which Desktop Duplication's output index
+        // doesn't reach reliably; GDI capture works for any monitor.
+        triedGdi = extend;
+        StartVideo(useGdi: extend);
         if (audio != null)
         {
             audio.Data += (pcm, pts) => conn.SendAudio(pcm, pts);
@@ -118,4 +131,10 @@ sealed class MirrorSession : IDisposable
     }
 
     public void Dispose() => Stop();
+}
+
+/// Extend was chosen but no virtual monitor exists (Windows needs a driver for one).
+sealed class NeedsVirtualDisplayException : Exception
+{
+    public const string Marker = "needs-virtual-display";
 }
