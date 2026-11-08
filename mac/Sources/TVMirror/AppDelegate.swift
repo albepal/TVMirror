@@ -37,6 +37,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             welcome.show()
         }
 
+        // Testing hook: write the menu (as built for the current state) to the log, including submenus.
+        if args.contains("--dump-menu") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+                guard let self, let menu = self.statusItem.menu else { return }
+                self.menuNeedsUpdate(menu)
+                func dump(_ m: NSMenu, _ indent: String) -> [String] {
+                    m.items.flatMap { item -> [String] in
+                        let line = item.isSeparatorItem ? indent + "────" :
+                            indent + (item.state == .on ? "✓ " : "  ") + item.title + (item.isEnabled ? "" : "  (label)")
+                        return [line] + (item.submenu.map { dump($0, indent + "      ") } ?? [])
+                    }
+                }
+                statsLog.notice("menu:\n\(dump(menu, "").joined(separator: "\n"), privacy: .public)")
+            }
+        }
+
         // Testing hook, same path as the menu: `open TVMirror.app --args --connect-name "Smart TV"`
         if let i = args.firstIndex(of: "--connect-name"), i + 1 < args.count {
             let name = args[i + 1]
