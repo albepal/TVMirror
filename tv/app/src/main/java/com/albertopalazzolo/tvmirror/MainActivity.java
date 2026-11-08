@@ -86,7 +86,7 @@ public class MainActivity extends Activity {
         titleRow.addView(status, statusLp);
         col.addView(titleRow);
 
-        TextView tagline = Ui.text(this, "Your Mac, on the big screen", 20, Ui.TEXT_DIM, false);
+        TextView tagline = Ui.text(this, "Your computer, on the big screen", 20, Ui.TEXT_DIM, false);
         tagline.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 28));
         col.addView(tagline);
 
@@ -96,7 +96,7 @@ public class MainActivity extends Activity {
         card.setPadding(Ui.dp(this, 26), Ui.dp(this, 20), Ui.dp(this, 26), Ui.dp(this, 20));
         card.setBackground(Ui.rounded(Color.argb(22, 255, 255, 255), Ui.dp(this, 20)));
         String name = MirrorService.deviceName(this);
-        card.addView(step("1", "On your Mac, click the TV icon in the menu bar"));
+        card.addView(step("1", "On your computer, click the TVMirror icon"));
         card.addView(step("2", "Choose “" + name + "”"));
         card.addView(step("3", "Press Back on the remote to stop"));
         col.addView(card, new LinearLayout.LayoutParams(Ui.dp(this, 470), LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         // Footer.
         List<String> ips = addresses();
         String footer = ips.isEmpty() ? "Not connected to a network"
-                : "TV address " + String.join(" · ", ips) + "   —   use “Connect to IP Address…” on the Mac if the TV isn't listed";
+                : "TV address " + String.join(" · ", ips) + "   —   use “Connect to IP Address…” on your computer if the TV isn't listed";
         TextView foot = Ui.text(this, footer, 13, Ui.TEXT_FAINT, false);
         FrameLayout.LayoutParams footLp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);

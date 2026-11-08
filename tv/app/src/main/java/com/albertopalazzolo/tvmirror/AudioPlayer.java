@@ -6,7 +6,7 @@ import android.media.AudioTrack;
 import android.util.Log;
 
 /**
- * Plays the Mac's sound. The amount of sound waiting in the buffer is capped: when the Mac's clock
+ * Plays the computer's sound. The amount of sound waiting in the buffer is capped: when the computer's clock
  * runs slightly faster than the TV's, or the network delivers a burst, the excess is dropped instead
  * of turning into permanent delay.
  */

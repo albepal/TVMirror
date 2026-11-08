@@ -28,7 +28,7 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
     private TextView status;
     private View splash;
     private TextView hint;
-    private volatile String peerName = "your Mac";
+    private volatile String peerName = "your computer";
 
     private Session session;
     private VideoDecoder decoder;
@@ -157,7 +157,7 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
         videoWidth = hello.optInt("width", 1920);
         videoHeight = hello.optInt("height", 1080);
         mime = "hevc".equals(hello.optString("codec")) ? "video/hevc" : "video/avc";
-        final String name = hello.optString("name", "Mac");
+        final String name = hello.optString("name", "your computer");
         if (hello.optBoolean("audio", false)) {
             audio.start(hello.optInt("sampleRate", 48000), hello.optInt("channels", 2), hello.optInt("playoutDelayMs", 0) > 0);
         }
@@ -223,7 +223,7 @@ public class MirrorActivity extends Activity implements SurfaceHolder.Callback, 
                 hint.animate().alpha(0f).setStartDelay(3500).setDuration(600).start()).start();
     }
 
-    /** Letterboxes the video to its own aspect ratio (e.g. a 16:10 Mac screen on a 16:9 TV). */
+    /** Letterboxes the video to its own aspect ratio (e.g. a 16:10 laptop screen on a 16:9 TV). */
     private void fitVideo() {
         int w = root.getWidth(), h = root.getHeight();
         if (w == 0 || h == 0 || videoWidth == 0) {
