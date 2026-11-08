@@ -13,6 +13,7 @@ final class ScreenCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     // videoQueue only
     private var lastBuffer: CVPixelBuffer?
     private var lastFrameTime = DispatchTime.now()
+    private var delaySum = 0.0, delayMax = 0.0, delayCount = 0
 
     var onVideo: ((CVPixelBuffer, CMTime) -> Void)?
     var onAudio: ((CMSampleBuffer) -> Void)?
@@ -80,6 +81,13 @@ final class ScreenCapture: NSObject, SCStreamOutput, SCStreamDelegate {
                   let pixelBuffer = sample.imageBuffer else { return }
             lastBuffer = pixelBuffer
             lastFrameTime = .now()
+            // How long after macOS rendered the frame we received it.
+            let delay = (CMTimeGetSeconds(CMClockGetTime(CMClockGetHostTimeClock())) - CMTimeGetSeconds(sample.presentationTimeStamp)) * 1000
+            delaySum += delay; delayMax = max(delayMax, delay); delayCount += 1
+            if delayCount >= 120 {
+                statsLog.notice("capture: delay avg \(self.delaySum / Double(self.delayCount), format: .fixed(precision: 1)) ms max \(self.delayMax, format: .fixed(precision: 1)) ms")
+                delaySum = 0; delayMax = 0; delayCount = 0
+            }
             onVideo?(pixelBuffer, sample.presentationTimeStamp)
         case .audio:
             onAudio?(sample)

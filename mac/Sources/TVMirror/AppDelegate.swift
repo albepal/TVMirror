@@ -16,7 +16,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var lastTarget: (endpoint: NWEndpoint, name: String)?
     private var state: State = .idle { didSet { updateIcon() } }
     private lazy var welcome = WelcomeWindow(tvs: { [weak self] in self?.browser.tvs ?? [] },
-                                             connect: { [weak self] tv in self?.connect(to: tv.endpoint, name: tv.name) })
+                                             connect: { [weak self] tv in
+                                                 Settings.screenUse = .mirror
+                                                 self?.connect(to: tv.endpoint, name: tv.name)
+                                             })
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AudioMuter.restore() // in case a previous run crashed while the Mac was muted
@@ -82,15 +85,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         switch state {
         case .idle:
-            menu.addItem(header("Mirror to"))
+            menu.addItem(header("Connect to"))
             if browser.tvs.isEmpty {
                 menu.addItem(disabled("Looking for TVs… (open TVMirror on the TV)"))
             }
+            // Each TV opens a small submenu: mirror or extend, like the AirPlay menu.
             for tv in browser.tvs {
-                let item = NSMenuItem(title: tv.name, action: #selector(connectToTV(_:)), keyEquivalent: "")
-                item.target = self
-                item.representedObject = tv
+                let item = NSMenuItem(title: tv.name, action: nil, keyEquivalent: "")
                 item.image = NSImage(systemSymbolName: "tv", accessibilityDescription: nil)
+                let choices = NSMenu()
+                for use in ScreenUse.allCases {
+                    let choice = NSMenuItem(title: use.title, action: #selector(connectToTV(_:)), keyEquivalent: "")
+                    choice.target = self
+                    choice.representedObject = TVChoice(tv: tv, use: use)
+                    choice.image = NSImage(systemSymbolName: use == .mirror ? "rectangle.on.rectangle" : "rectangle.split.2x1",
+                                           accessibilityDescription: nil)
+                    choices.addItem(choice)
+                }
+                item.submenu = choices
                 menu.addItem(item)
             }
             menu.addItem(action("Connect to IP Address…", #selector(connectManually)))
@@ -98,8 +110,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(header("Connecting to \(name)…"))
             menu.addItem(action("Cancel", #selector(stopMirroring), key: "."))
         case .mirroring(let name):
-            menu.addItem(header("Mirroring to \(name)"))
-            menu.addItem(action("Stop Mirroring", #selector(stopMirroring), key: "."))
+            let extending = Settings.screenUse == .extend
+            menu.addItem(header(extending ? "Extending to \(name)" : "Mirroring to \(name)"))
+            menu.addItem(action(extending ? "Switch to Mirror Screen" : "Switch to Extend Screen", #selector(switchScreenUse)))
+            menu.addItem(action("Stop", #selector(stopMirroring), key: "."))
         }
 
         menu.addItem(.separator())
@@ -118,14 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(submenu("Display", sub))
         }
 
-        for u in ScreenUse.allCases {
-            let item = NSMenuItem(title: u.title, action: #selector(pickScreenUse(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = u.rawValue
-            item.state = u == Settings.screenUse ? .on : .off
-            menu.addItem(item)
-        }
-        menu.addItem(.separator())
+        menu.addItem(disabled(Settings.screenUse == .extend ? "When extending:" : "When mirroring:"))
 
         for m in Mode.allCases {
             let item = NSMenuItem(title: m.title, action: #selector(pickMode(_:)), keyEquivalent: "")
@@ -200,8 +207,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Actions
 
     @objc private func connectToTV(_ sender: NSMenuItem) {
-        guard let tv = sender.representedObject as? TVBrowser.TV else { return }
-        connect(to: tv.endpoint, name: tv.name)
+        guard let choice = sender.representedObject as? TVChoice else { return }
+        Settings.screenUse = choice.use
+        connect(to: choice.tv.endpoint, name: choice.tv.name)
+    }
+
+    @objc private func switchScreenUse() {
+        Settings.screenUse = Settings.screenUse == .extend ? .mirror : .extend
+        settingsChanged()
     }
 
     @objc private func connectManually() {
@@ -261,12 +274,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func pickDisplay(_ sender: NSMenuItem) {
         Settings.displayID = CGDirectDisplayID(sender.tag)
-        settingsChanged()
-    }
-
-    @objc private func pickScreenUse(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String, let u = ScreenUse(rawValue: raw) else { return }
-        Settings.screenUse = u
         settingsChanged()
     }
 
@@ -334,4 +341,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSWorkspace.shared.open(url)
         }
     }
+}
+
+/// A TV plus how to use it, carried by the menu items in a TV's submenu.
+private final class TVChoice: NSObject {
+    let tv: TVBrowser.TV
+    let use: ScreenUse
+    init(tv: TVBrowser.TV, use: ScreenUse) { self.tv = tv; self.use = use }
 }

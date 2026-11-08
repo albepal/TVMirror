@@ -68,7 +68,7 @@ enum ScreenUse: String, CaseIterable {
     var title: String {
         switch self {
         case .mirror: "Mirror Screen"
-        case .extend: "Extend Screen (TV as second display)"
+        case .extend: "Extend Screen (second display)"
         }
     }
 }
@@ -88,9 +88,11 @@ struct Settings {
         get { ScreenUse(rawValue: d.string(forKey: "screenUse") ?? "") ?? .mirror }
         set { d.set(newValue.rawValue, forKey: "screenUse") }
     }
+    /// Remembered separately for Mirror and Extend. Extend defaults to Responsive: the mouse is used
+    /// on the TV itself, so any extra delay is felt on every movement.
     static var mode: Mode {
-        get { Mode(rawValue: d.string(forKey: "mode") ?? "") ?? .responsive }
-        set { d.set(newValue.rawValue, forKey: "mode") }
+        get { Mode(rawValue: d.string(forKey: screenUse == .extend ? "modeExtend" : "mode") ?? "") ?? .responsive }
+        set { d.set(newValue.rawValue, forKey: screenUse == .extend ? "modeExtend" : "mode") }
     }
     static var sendAudio: Bool {
         get { d.object(forKey: "sendAudio") as? Bool ?? true }
