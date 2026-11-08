@@ -1,4 +1,4 @@
-AirPlay-style screen mirroring from a Mac or Windows PC to a Google TV / Android TV.
+AirPlay-style screen mirroring from a Mac or Windows PC to a Google TV / Android TV or Fire TV (Fire OS 7+).
 
 ## Downloads
 
@@ -6,7 +6,7 @@ AirPlay-style screen mirroring from a Mac or Windows PC to a Google TV / Android
 |---|---|
 | `TVMirror-mac.dmg` | Mac (macOS 14+, Apple Silicon and Intel). Open it and drag TVMirror to Applications. |
 | `TVMirror-windows.exe` | Windows 10/11 (64-bit). Portable: just run it; it appears next to the clock. |
-| `TVMirror-tv.apk` | The TV app (Google TV / Android TV 8+). Install it once on the TV. |
+| `TVMirror-tv.apk` | The TV app (Google TV / Android TV 8+, Fire TV with Fire OS 7+). Install it once on the TV. |
 
 ## Setup
 

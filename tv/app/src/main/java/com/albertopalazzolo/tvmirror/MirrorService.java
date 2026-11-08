@@ -37,11 +37,22 @@ public class MirrorService extends Service {
         context.startForegroundService(new Intent(context, MirrorService.class));
     }
 
+    /**
+     * The name computers show in their menu. Prefers the name the user gave the TV; Fire TV keeps it as
+     * the Bluetooth name. Falls back to a readable model name instead of codes like "Amazon AFTMM".
+     */
     static String deviceName(Context context) {
         String name = Settings.Global.getString(context.getContentResolver(), "device_name");
-        if (name == null || name.isEmpty()) name = Build.MANUFACTURER + " " + Build.MODEL;
-        return name;
+        if (isBlank(name)) {
+            try { name = Settings.Secure.getString(context.getContentResolver(), "bluetooth_name"); } catch (Exception ignored) { }
+        }
+        if (isBlank(name)) {
+            name = "Amazon".equalsIgnoreCase(Build.MANUFACTURER) ? "Fire TV" : Build.MANUFACTURER + " " + Build.MODEL;
+        }
+        return name.trim();
     }
+
+    private static boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
 
     @Override
     public void onCreate() {

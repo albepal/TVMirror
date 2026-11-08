@@ -1,6 +1,7 @@
 # TVMirror
 
-AirPlay-style screen mirroring from a Mac or Windows PC to a Google TV (e.g. TCL).
+AirPlay-style screen mirroring from a Mac or Windows PC to a Google TV / Android TV (e.g. TCL) or Fire TV
+(Fire OS 7+; not the Vega OS models).
 Downloads (DMG, EXE, TV APK) are on the Releases page.
 
 - `mac/` – menu-bar app. ScreenCaptureKit → VideoToolbox hardware H.264/HEVC (low-latency mode) → TCP.
@@ -12,7 +13,8 @@ asks for a keyframe when more than 8 are in flight, and the TV disables Wi-Fi po
 
 ## Install (no computer skills needed)
 
-1. **TV (Google TV / Android TV):** from Google Play install the free app **Downloader**. Open it, type
+1. **TV (Google TV / Android TV / Fire TV):** install the free app **Downloader** (Google Play, or the Amazon
+   Appstore on Fire TV; there also allow it under Settings → My Fire TV → Developer options → Install unknown apps). Open it, type
    `github.com/albepal/TVMirror/releases/latest/download/TVMirror-tv.apk`, install, and open **TVMirror**.
    If the TV asks, allow Downloader to install apps. On TVMirror's home screen, press
    **Allow it to start from anywhere** so mirroring can start even when another app is open.
