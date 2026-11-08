@@ -1,0 +1,7 @@
+.DS_Store
+mac/.build/
+mac/build/
+tv/.gradle/
+tv/build/
+tv/app/build/
+tv/local.properties
