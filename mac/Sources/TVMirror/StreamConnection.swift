@@ -171,7 +171,7 @@ final class StreamConnection {
                 if sentAt.count > 500 { sentAt.removeAll() }
             }
         case .requestKeyframe: onKeyframeRequest?()
-        case .bye: finish("Mirroring was stopped on the TV.")
+        case .bye: finish(nil) // stopped from the TV: a normal end, not an error
         default: break
         }
     }

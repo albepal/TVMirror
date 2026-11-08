@@ -14,6 +14,7 @@ sealed class Settings
     public bool MuteSpeakers { get; set; } = false;
     public int DisplayIndex { get; set; } = 0;
     public string LastManualHost { get; set; } = "";
+    public bool WelcomeShown { get; set; } = false;
 
     static readonly string Dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TVMirror");
     static readonly string File_ = Path.Combine(Dir, "settings.json");

@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Where the current/last session went, so setting changes can restart it.
     private var lastTarget: (endpoint: NWEndpoint, name: String)?
     private var state: State = .idle { didSet { updateIcon() } }
+    private lazy var welcome = WelcomeWindow(tvs: { [weak self] in self?.browser.tvs ?? [] },
+                                             connect: { [weak self] tv in self?.connect(to: tv.endpoint, name: tv.name) })
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AudioMuter.restore() // in case a previous run crashed while the Mac was muted
@@ -25,6 +27,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
         updateIcon()
         browser.start()
+
+        if !UserDefaults.standard.bool(forKey: "welcomeShown") && !CommandLine.arguments.contains("--connect") {
+            UserDefaults.standard.set(true, forKey: "welcomeShown")
+            welcome.show()
+        }
 
         // Testing hook: `open TVMirror.app --args --connect 127.0.0.1:47800`
         let args = CommandLine.arguments
@@ -139,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(mute)
 
         menu.addItem(.separator())
+        menu.addItem(action("Setup Guide…", #selector(showWelcome)))
         let login = action("Open at Login", #selector(toggleLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
@@ -275,6 +283,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } catch {
             show(error)
         }
+    }
+
+    @objc private func showWelcome() {
+        welcome.show()
     }
 
     @objc private func quit() {

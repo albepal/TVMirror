@@ -1,5 +1,6 @@
 #!/bin/bash
 # Builds every download and publishes a GitHub release.
+# File names carry no version, so releases/latest/download/<name> links (used by the apps) always work.
 #   scripts/release.sh 1.0.0          → dist/ + GitHub release v1.0.0
 #   scripts/release.sh 1.0.0 --local  → dist/ only
 set -euo pipefail
@@ -21,17 +22,17 @@ mac/scripts/build.sh --universal
 STAGE=$(mktemp -d)
 cp -R mac/build/TVMirror.app "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "TVMirror $VERSION" -srcfolder "$STAGE" -ov -format UDZO "dist/TVMirror-$VERSION-mac.dmg" >/dev/null
+hdiutil create -volname "TVMirror $VERSION" -srcfolder "$STAGE" -ov -format UDZO "dist/TVMirror-mac.dmg" >/dev/null
 rm -rf "$STAGE"
 
 echo "== TV"
 (cd tv && ./gradlew assembleRelease -q)
-cp tv/app/build/outputs/apk/release/app-release.apk "dist/TVMirror-$VERSION-tv.apk"
+cp tv/app/build/outputs/apk/release/app-release.apk "dist/TVMirror-tv.apk"
 
 echo "== Windows"
 windows/get-ffmpeg.sh >/dev/null
 dotnet publish windows/TVMirror.csproj -c Release -o windows/bin/publish -v quiet -nologo
-cp windows/bin/publish/TVMirror.exe "dist/TVMirror-$VERSION-windows.exe"
+cp windows/bin/publish/TVMirror.exe "dist/TVMirror-windows.exe"
 
 ls -lh dist
 [ "${2:-}" = "--local" ] && exit 0

@@ -116,12 +116,33 @@ public class MainActivity extends Activity {
         root.addView(foot, footLp);
 
         if (!Settings.canDrawOverlays(this)) {
-            TextView warn = Ui.pill(this, "Mirroring opens by itself only while this app is open — see README to allow it from anywhere",
-                    Color.argb(50, 251, 191, 36), Color.rgb(251, 211, 106));
+            // Without this permission the video screen can only open while this app is in front.
+            LinearLayout banner = new LinearLayout(this);
+            banner.setOrientation(LinearLayout.HORIZONTAL);
+            banner.setGravity(Gravity.CENTER_VERTICAL);
+            banner.setPadding(Ui.dp(this, 20), Ui.dp(this, 10), Ui.dp(this, 10), Ui.dp(this, 10));
+            banner.setBackground(Ui.rounded(Color.argb(45, 251, 191, 36), Ui.dp(this, 24)));
+            TextView msg = Ui.text(this, "Mirroring can only start while this app is open.", 16, Color.rgb(251, 211, 106), false);
+            banner.addView(msg);
+            TextView allow = Ui.text(this, "Allow it to start from anywhere  ›", 16, Color.rgb(32, 24, 4), true);
+            allow.setPadding(Ui.dp(this, 18), Ui.dp(this, 9), Ui.dp(this, 18), Ui.dp(this, 9));
+            android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
+            states.addState(new int[]{android.R.attr.state_focused}, Ui.rounded(Color.rgb(255, 225, 140), Ui.dp(this, 20)));
+            states.addState(new int[]{}, Ui.rounded(Color.rgb(251, 191, 36), Ui.dp(this, 20)));
+            allow.setBackground(states);
+            allow.setFocusable(true);
+            allow.setClickable(true);
+            allow.setOnFocusChangeListener((v, focused) -> v.animate().scaleX(focused ? 1.06f : 1f).scaleY(focused ? 1.06f : 1f).setDuration(120).start());
+            allow.setOnClickListener(v -> openOverlaySettings());
+            LinearLayout.LayoutParams aLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            aLp.leftMargin = Ui.dp(this, 16);
+            banner.addView(allow, aLp);
             FrameLayout.LayoutParams wLp = new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
             wLp.topMargin = Ui.dp(this, 28);
-            root.addView(warn, wLp);
+            root.addView(banner, wLp);
+            allow.post(allow::requestFocus);
         }
 
         pulse = ObjectAnimator.ofFloat(dot, View.ALPHA, 1f, 0.25f);
@@ -130,6 +151,20 @@ public class MainActivity extends Activity {
         pulse.setRepeatCount(ValueAnimator.INFINITE);
         pulse.start();
         return root;
+    }
+
+    /** Opens Android's "Display over other apps" page for this app (TV settings differ between brands). */
+    private void openOverlaySettings() {
+        android.content.Intent[] tries = {
+                new android.content.Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + getPackageName())),
+                new android.content.Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION),
+                new android.content.Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + getPackageName())),
+        };
+        for (android.content.Intent i : tries) {
+            try { startActivity(i); return; } catch (android.content.ActivityNotFoundException ignored) { }
+        }
+        android.widget.Toast.makeText(this, "Open Settings › Apps › Special app access › Display over other apps, and turn on TVMirror.",
+                android.widget.Toast.LENGTH_LONG).show();
     }
 
     private View step(String number, String label) {

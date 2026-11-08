@@ -34,6 +34,12 @@ sealed class TrayApp : ApplicationContext
                 typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(icon, null);
         };
         discoveryTimer = new System.Threading.Timer(_ => Discover(), null, 0, 8000);
+        if (!settings.WelcomeShown)
+        {
+            settings.WelcomeShown = true;
+            settings.Save();
+            ui.Post(_ => ShowWelcome(), null);
+        }
         Application.ApplicationExit += (_, _) => { session?.Stop(); SpeakerMute.Restore(); icon.Visible = false; };
     }
 
@@ -116,6 +122,7 @@ sealed class TrayApp : ApplicationContext
         { Checked = settings.MuteSpeakers, Enabled = settings.SendAudio });
 
         menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(new ToolStripMenuItem("Setup Guide…", null, (_, _) => ShowWelcome()));
         menu.Items.Add(new ToolStripMenuItem("Start with Windows", null, (_, _) => Settings.StartWithWindows = !Settings.StartWithWindows)
         { Checked = Settings.StartWithWindows });
         menu.Items.Add(new ToolStripMenuItem("Quit TVMirror", null, (_, _) => { session?.Stop(); Application.Exit(); }));
@@ -123,6 +130,17 @@ sealed class TrayApp : ApplicationContext
 
     static ToolStripMenuItem Header(string text) =>
         new(text) { Enabled = false, Font = new Font(SystemFonts.MenuFont ?? Control.DefaultFont, FontStyle.Bold) };
+
+    WelcomeForm? welcome;
+
+    void ShowWelcome()
+    {
+        if (welcome is { IsDisposed: false }) { welcome.Activate(); return; }
+        welcome = new WelcomeForm(idleIcon, () => tvs.Select(t => (t.Name, t.Host, t.Port)).ToList(),
+                                  t => Connect(t.Host, t.Port, t.Name));
+        welcome.Show();
+        welcome.Activate();
+    }
 
     void ConnectManually()
     {
