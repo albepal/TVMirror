@@ -44,6 +44,13 @@ Release everything: `scripts/release.sh <version>` → `dist/` (DMG, EXE, APK) +
 Click the TV icon in the Mac menu bar → choose the TV. Back (or Home) on the TV remote, or "Stop Mirroring" on the Mac, ends it.
 Quality, codec, display, and sound options are in the same menu and apply immediately.
 
+Screen:
+- **Mirror Screen** – the TV shows your screen.
+- **Extend Screen** (Mac) – the TV becomes a second display (arrange it or pick 1280×720 / 1600×900 / 1920×1080
+  "looks like" sizes in System Settings → Displays). Uses CoreGraphics' virtual display API; on macOS 27 it only
+  comes online when the first mode is 1280×720 (approach checked against BetterDummy 1.0.11, MIT).
+  On Windows, extending needs a virtual display driver; then pick that display under **Display**.
+
 Modes:
 - **Responsive** – lowest delay, for mouse and typing.
 - **Smooth** – the TV holds frames back ~150 ms to ride out Wi-Fi pauses; best for videos, and keeps sound in sync

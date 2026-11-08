@@ -29,7 +29,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         browser.start()
 
         let args = CommandLine.arguments
-        }
         if !UserDefaults.standard.bool(forKey: "welcomeShown") && !args.contains(where: { $0.hasPrefix("--connect") }) {
             UserDefaults.standard.set(true, forKey: "welcomeShown")
             welcome.show()

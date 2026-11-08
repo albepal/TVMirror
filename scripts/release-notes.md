@@ -19,6 +19,10 @@ AirPlay-style screen mirroring from a Mac or Windows PC to a Google TV / Android
 - Mac: if macOS says it can't check the app, open **System Settings → Privacy & Security** and click **Open Anyway**; then allow *Screen & System Audio Recording* when asked.
 - Windows: if SmartScreen appears, click **More info → Run anyway**.
 
+## Mirror or extend
+- **Mirror Screen** – the TV shows your screen.
+- **Extend Screen** (Mac) – the TV becomes a second display you can drag windows onto.
+
 ## Modes
 - **Responsive** – lowest delay, for mouse and typing.
 - **Smooth** – holds the picture ~150 ms to ride out Wi-Fi pauses; best for videos, and keeps sound in sync.
