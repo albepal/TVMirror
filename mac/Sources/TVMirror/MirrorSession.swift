@@ -92,7 +92,10 @@ final class MirrorSession {
                 throw MirrorError.message("Couldn't create the extended display.")
             }
             virtualScreen = screen
-            display = try await findDisplay(screen.displayID)
+            _ = try await findDisplay(screen.displayID)
+            screen.arrange()
+            try await Task.sleep(nanoseconds: 300_000_000)
+            display = try await findDisplay(screen.displayID) // re-read: size changed with the mode
         } else {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             let wanted = Settings.displayID == 0 ? CGMainDisplayID() : Settings.displayID
