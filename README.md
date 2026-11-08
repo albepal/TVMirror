@@ -53,3 +53,7 @@ Both apps log timing every ~2 s:
 
 Built by Alberto Palazzolo together with **Claude** (Anthropic's AI model), using Claude Code.
 Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## License
+
+MIT – see [LICENSE](LICENSE). Bundled third-party components keep their own licenses ([THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
