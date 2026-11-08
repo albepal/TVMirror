@@ -28,13 +28,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateIcon()
         browser.start()
 
-        if !UserDefaults.standard.bool(forKey: "welcomeShown") && !CommandLine.arguments.contains("--connect") {
+        let args = CommandLine.arguments
+        if !UserDefaults.standard.bool(forKey: "welcomeShown") && !args.contains(where: { $0.hasPrefix("--connect") }) {
             UserDefaults.standard.set(true, forKey: "welcomeShown")
             welcome.show()
         }
 
+        // Testing hook, same path as the menu: `open TVMirror.app --args --connect-name "Smart TV"`
+        if let i = args.firstIndex(of: "--connect-name"), i + 1 < args.count {
+            let name = args[i + 1]
+            browser.onChange = { [weak self] in
+                guard let self, self.session == nil, let tv = self.browser.tvs.first(where: { $0.name == name }) else { return }
+                self.browser.onChange = nil
+                self.connect(to: tv.endpoint, name: tv.name)
+            }
+        }
+
         // Testing hook: `open TVMirror.app --args --connect 127.0.0.1:47800`
-        let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--connect"), i + 1 < args.count {
             let parts = args[i + 1].split(separator: ":")
             let port = parts.count > 1 ? UInt16(parts[1]) ?? tvDefaultPort : tvDefaultPort

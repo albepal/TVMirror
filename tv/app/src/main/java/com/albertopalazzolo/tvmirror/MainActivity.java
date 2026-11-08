@@ -115,34 +115,25 @@ public class MainActivity extends Activity {
         footLp.bottomMargin = Ui.dp(this, 28);
         root.addView(foot, footLp);
 
+        // One-time setup actions, shown only while still needed.
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.VERTICAL);
+        actions.setGravity(Gravity.CENTER_HORIZONTAL);
+        if (!autoStartAllowed()) {
+            actions.addView(actionBanner("TVMirror can't start when the TV turns on.",
+                    "Fix: Auto Launch Permission › TVMirror  ›", this::openTclAutoLaunch));
+        }
         if (!Settings.canDrawOverlays(this)) {
-            // Without this permission the video screen can only open while this app is in front.
-            LinearLayout banner = new LinearLayout(this);
-            banner.setOrientation(LinearLayout.HORIZONTAL);
-            banner.setGravity(Gravity.CENTER_VERTICAL);
-            banner.setPadding(Ui.dp(this, 20), Ui.dp(this, 10), Ui.dp(this, 10), Ui.dp(this, 10));
-            banner.setBackground(Ui.rounded(Color.argb(45, 251, 191, 36), Ui.dp(this, 24)));
-            TextView msg = Ui.text(this, "Mirroring can only start while this app is open.", 16, Color.rgb(251, 211, 106), false);
-            banner.addView(msg);
-            TextView allow = Ui.text(this, "Allow it to start from anywhere  ›", 16, Color.rgb(32, 24, 4), true);
-            allow.setPadding(Ui.dp(this, 18), Ui.dp(this, 9), Ui.dp(this, 18), Ui.dp(this, 9));
-            android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
-            states.addState(new int[]{android.R.attr.state_focused}, Ui.rounded(Color.rgb(255, 225, 140), Ui.dp(this, 20)));
-            states.addState(new int[]{}, Ui.rounded(Color.rgb(251, 191, 36), Ui.dp(this, 20)));
-            allow.setBackground(states);
-            allow.setFocusable(true);
-            allow.setClickable(true);
-            allow.setOnFocusChangeListener((v, focused) -> v.animate().scaleX(focused ? 1.06f : 1f).scaleY(focused ? 1.06f : 1f).setDuration(120).start());
-            allow.setOnClickListener(v -> openOverlaySettings());
-            LinearLayout.LayoutParams aLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            aLp.leftMargin = Ui.dp(this, 16);
-            banner.addView(allow, aLp);
-            FrameLayout.LayoutParams wLp = new FrameLayout.LayoutParams(
+            actions.addView(actionBanner("Mirroring can only start while this app is open.",
+                    "Allow it to start from anywhere  ›", this::openOverlaySettings));
+        }
+        if (actions.getChildCount() > 0) {
+            FrameLayout.LayoutParams aLp = new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-            wLp.topMargin = Ui.dp(this, 28);
-            root.addView(banner, wLp);
-            allow.post(allow::requestFocus);
+            aLp.topMargin = Ui.dp(this, 22);
+            root.addView(actions, aLp);
+            View firstButton = ((LinearLayout) actions.getChildAt(0)).getChildAt(1);
+            firstButton.post(firstButton::requestFocus);
         }
 
         pulse = ObjectAnimator.ofFloat(dot, View.ALPHA, 1f, 0.25f);
@@ -151,6 +142,67 @@ public class MainActivity extends Activity {
         pulse.setRepeatCount(ValueAnimator.INFINITE);
         pulse.start();
         return root;
+    }
+
+    /** A yellow strip with a message and a remote-focusable button. */
+    private LinearLayout actionBanner(String message, String button, Runnable onClick) {
+        LinearLayout banner = new LinearLayout(this);
+        banner.setOrientation(LinearLayout.HORIZONTAL);
+        banner.setGravity(Gravity.CENTER_VERTICAL);
+        banner.setPadding(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
+        banner.setBackground(Ui.rounded(Color.argb(45, 251, 191, 36), Ui.dp(this, 24)));
+        banner.addView(Ui.text(this, message, 15, Color.rgb(251, 211, 106), false));
+        TextView b = Ui.text(this, button, 15, Color.rgb(32, 24, 4), true);
+        b.setPadding(Ui.dp(this, 16), Ui.dp(this, 8), Ui.dp(this, 16), Ui.dp(this, 8));
+        android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_focused}, Ui.rounded(Color.rgb(255, 225, 140), Ui.dp(this, 20)));
+        states.addState(new int[]{}, Ui.rounded(Color.rgb(251, 191, 36), Ui.dp(this, 20)));
+        b.setBackground(states);
+        b.setFocusable(true);
+        b.setClickable(true);
+        b.setOnFocusChangeListener((v, f) -> v.animate().scaleX(f ? 1.06f : 1f).scaleY(f ? 1.06f : 1f).setDuration(120).start());
+        b.setOnClickListener(v -> onClick.run());
+        LinearLayout.LayoutParams bLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        bLp.leftMargin = Ui.dp(this, 14);
+        banner.addView(b, bLp);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = Ui.dp(this, 10);
+        banner.setLayoutParams(lp);
+        return banner;
+    }
+
+    /**
+     * TCL TVs block apps from starting by themselves (after boot or an update) unless allowed in
+     * TCL Guard › Permission Shield › Auto Launch Permission. Other TVs don't have this restriction.
+     */
+    private boolean autoStartAllowed() {
+        try {
+            getPackageManager().getPackageInfo("com.tcl.guard", 0);
+        } catch (Exception e) {
+            return true; // not a TCL TV
+        }
+        android.app.AppOpsManager ops = getSystemService(android.app.AppOpsManager.class);
+        for (String op : new String[]{"android:app_auto_start", "tcl:app_auto_start", "android:auto_start"}) {
+            try {
+                int mode = ops.unsafeCheckOpNoThrow(op, android.os.Process.myUid(), getPackageName());
+                return mode == android.app.AppOpsManager.MODE_ALLOWED;
+            } catch (Exception ignored) { }
+        }
+        // Unknown op name on this firmware: fall back to a one-time hint the user can dismiss by using it.
+        return getPreferences(MODE_PRIVATE).getBoolean("autoStartVisited", false);
+    }
+
+    private void openTclAutoLaunch() {
+        getPreferences(MODE_PRIVATE).edit().putBoolean("autoStartVisited", true).apply();
+        try {
+            startActivity(new android.content.Intent("com.tcl.guard.action.PermissionManager"));
+            android.widget.Toast.makeText(this, "Open “Auto Launch Permission” and turn on TVMirror.", android.widget.Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            android.widget.Toast.makeText(this, "Open TCL Guard › Permission Shield › Auto Launch Permission and turn on TVMirror.",
+                    android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     /** Opens Android's "Display over other apps" page for this app (TV settings differ between brands). */

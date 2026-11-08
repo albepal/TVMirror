@@ -129,8 +129,18 @@ final class Session {
         }
     }
 
-    void requestKeyframe() { send(REQUEST_KEYFRAME, 0); }
+    /** Outgoing messages go through one background thread: Android forbids network calls on the UI thread. */
+    private final java.util.concurrent.ExecutorService sender = java.util.concurrent.Executors.newSingleThreadExecutor();
 
+    /** Safe to call from any thread. */
+    void requestKeyframe() { post(REQUEST_KEYFRAME, 0); }
+
+    private void post(int type, long pts) {
+        if (closed) return;
+        try { sender.execute(() -> send(type, pts)); } catch (java.util.concurrent.RejectedExecutionException ignored) { }
+    }
+
+    /** Writes immediately; only call from a background thread (the reader thread or the sender). */
     private synchronized void send(int type, long pts) {
         if (closed) return;
         try {
@@ -149,14 +159,21 @@ final class Session {
     void close() {
         synchronized (this) {
             if (closed) return;
-            send(BYE, 0);
-            closed = true;
         }
-        closeSocket();
+        try {
+            sender.execute(() -> {
+                send(BYE, 0);
+                closeSocket();
+            });
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            closeSocket();
+        }
+        sender.shutdown();
     }
 
     private void closeSocket() {
         closed = true;
+        sender.shutdown();
         clearIfCurrent(this);
         try { socket.close(); } catch (IOException ignored) { }
     }
