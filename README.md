@@ -48,3 +48,8 @@ Both apps log timing every ~2 s:
 - TV not listed: open TVMirror on the TV once (starts the receiver), or use "Connect to IP Address…".
 - Stutter on Wi-Fi: use 1080p, put the TV on Ethernet or 5 GHz.
 - Testing without a TV: `open /Applications/TVMirror.app --args --connect 127.0.0.1:47800` against a fake receiver.
+
+## Credits
+
+Built by Alberto Palazzolo together with **Claude** (Anthropic's AI model), using Claude Code.
+Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
