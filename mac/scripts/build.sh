@@ -5,11 +5,20 @@ cd "$(dirname "$0")/.."
 # Same SDK choice as Sweep: the command-line tools' 27 SDK lacks pieces; 26.5 works.
 [ -d /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk ] && export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
 
-swift build -c release
 APP=build/TVMirror.app
+if [ "${1:-}" = "--universal" ]; then
+    # Apple Silicon + Intel, for releases.
+    swift build -c release --arch arm64 --arch x86_64
+    BIN=.build/out/Products/Release/TVMirror
+    [ -f "$BIN" ] || BIN=.build/apple/Products/Release/TVMirror
+    shift
+else
+    swift build -c release
+    BIN=.build/release/TVMirror
+fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp .build/release/TVMirror "$APP/Contents/MacOS/TVMirror"
+cp "$BIN" "$APP/Contents/MacOS/TVMirror"
 cp scripts/Info.plist "$APP/Contents/Info.plist"
 if [ ! -f build/AppIcon.icns ] || [ ../scripts/make-icons.swift -nt build/AppIcon.icns ]; then
     rm -rf build/art build/AppIcon.iconset && mkdir -p build/AppIcon.iconset

@@ -38,10 +38,10 @@ jobs:
           Write-Host "--- fake TV"; Get-Content fake_tv.log
           Write-Host "--- decode check"
           windows/ffmpeg/ffprobe.exe -v error -count_frames -select_streams v:0 -show_entries stream=codec_name,width,height,nb_read_frames -of default=nw=1 received.h264
-          windows/ffmpeg/ffmpeg.exe -v error -i received.h264 -f null - 2>&1 | Tee-Object decode_errors.txt
+          $errs = & windows/ffmpeg/ffmpeg.exe -v error -i received.h264 -f null - 2>&1
+          if ($errs) { $errs; throw "decode errors" }
           if ($app.ExitCode -ne 0) { throw "self-test failed (exit $($app.ExitCode))" }
-          if ((Get-Item decode_errors.txt).Length -gt 0) { throw "decode errors" }
-          windows/ffmpeg/ffmpeg.exe -v error -sseof -1 -i received.h264 -frames:v 1 -update 1 last_frame.png
+          & windows/ffmpeg/ffmpeg.exe -v error -i received.h264 -vf "select=eq(n\,300)" -frames:v 1 last_frame.png
 
       - uses: actions/upload-artifact@v4
         if: always()

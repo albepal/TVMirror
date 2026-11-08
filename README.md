@@ -1,8 +1,10 @@
 # TVMirror
 
-AirPlay-style screen mirroring from a Mac to a Google TV (e.g. TCL).
+AirPlay-style screen mirroring from a Mac or Windows PC to a Google TV (e.g. TCL).
+Downloads (DMG, EXE, TV APK) are on the Releases page.
 
 - `mac/` – menu-bar app. ScreenCaptureKit → VideoToolbox hardware H.264/HEVC (low-latency mode) → TCP.
+- `windows/` – tray app (.NET 10, WinForms). Bundled FFmpeg: Desktop Duplication capture (GDI fallback) → NVENC / Quick Sync / AMF / Media Foundation / OpenH264, zero-latency settings; WASAPI loopback audio; mDNS discovery.
 - `tv/` – Google TV app. Always-on receiver (Bonjour + port 47800) → MediaCodec hardware decode straight to the screen, PCM audio via AudioTrack.
 
 Latency control: no B-frames, no decoder buffering, the TV acks each frame and the Mac drops frames and
@@ -18,6 +20,12 @@ scripts/install-tv.sh 192.168.1.50      # TV app over Wi-Fi (the TV's IP)
 One-time TV setup for adb: Settings → System → About → click "Android TV OS build" 7 times, then
 Settings → System → Developer options → turn on "USB debugging" / "Network debugging" (or "Wireless debugging").
 The TV's IP is in Settings → Network & Internet.
+
+Windows: `windows/get-ffmpeg.sh && dotnet publish windows/TVMirror.csproj -c Release` (cross-builds on a Mac).
+CI (`.github/workflows/windows.yml`) builds the exe and runs an end-to-end self-test on a real Windows machine
+against `tools/fake_tv.py`, then checks the received video decodes.
+
+Release everything: `scripts/release.sh <version>` → `dist/` (DMG, EXE, APK) + GitHub release.
 
 ## Use
 
